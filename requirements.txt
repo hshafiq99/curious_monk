@@ -1,0 +1,11 @@
+Requirements:
+VPC
+Subnets pub(LB),priv(NACL),db(NACL)
+NAT Gateways
+EC2 Instances
+Application Load Balancers
+Autoscaling MultiAZ
+ECS
+Postgresql Aurora Cluster
+Disaster Recovery
+AWS CLI Create Secret in secret manager
