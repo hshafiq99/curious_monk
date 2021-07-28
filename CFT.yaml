@@ -42,7 +42,7 @@ Parameters:
     ConstraintDescription: Identifier names must be 3-6 characters and contain only a-z and 0-9.
   DBIdentifierNameReplicaA:
     Description: The string that will be prefixed to each instance name
-    Default: devreplica
+    Default: devreplicaA
     Type: String
     MinLength: '3'
     MaxLength: '10'
@@ -50,7 +50,7 @@ Parameters:
     ConstraintDescription: Identifier names must be 3-10 characters and contain only a-z and 0-9.
   DBIdentifierNameReplicaB:
     Description: The string that will be prefixed to each instance name
-    Default: devreplica
+    Default: devreplicaB
     Type: String
     MinLength: '3'
     MaxLength: '10'
@@ -62,6 +62,37 @@ Parameters:
     Type: Number
   ImageURI:
     Type: String
+    Default: "amazon/amazon-ecs-sample"
+  VpcCIDR:
+    Type: String
+    Default: "10.0.0.0/22"
+  DBSubnetACIDR:
+    Type: String
+    Default: "10.0.6.0/24"
+  DBSubnetBCIDR:
+    Type: String
+    Default: "10.0.7.0/24"
+  DBSubnetCCIDR:
+    Type: String
+    Default: "10.0.8.0/24"
+  PrivateSubnetACIDR:
+    Type: String
+    Default: "10.0.0.0/24"
+  PrivateSubnetBCIDR:
+    Type: String
+    Default: "10.0.2.0/24"
+  PrivateSubnetCCIDR:
+    Type: String
+    Default: "10.0.4.0/24"
+  PublicSubnetACIDR:
+    Type: String
+    Default: "10.0.1.0/24"
+  PublicSubnetBCIDR:
+    Type: String
+    Default: "10.0.3.0/24"
+  PublicSubnetCCIDR:
+    Type: String
+    Default: "10.0.5.0/24"
 
 Resources:
   # Create an ECS Cluster
@@ -74,7 +105,7 @@ Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 10.0.0.0/22
+      CidrBlock: !Ref VpcCIDR
       EnableDnsHostnames: True
       EnableDnsSupport: True
       Tags:
@@ -96,7 +127,7 @@ Resources:
   DBSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: 10.0.6.0/24
+      CidrBlock: !Ref DBSubnetACIDR
       VpcId: !Ref VPC
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
 
@@ -111,7 +142,7 @@ Resources:
   DBSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: 10.0.7.0/24
+      CidrBlock: !Ref DBSubnetBCIDR
       VpcId: !Ref VPC
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
 
@@ -126,7 +157,7 @@ Resources:
   DBSubnetC:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: 10.0.8.0/24
+      CidrBlock: !Ref DBSubnetCCIDR
       VpcId: !Ref VPC
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
 
@@ -142,7 +173,7 @@ Resources:
   PrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: 10.0.0.0/24
+      CidrBlock: !Ref PrivateSubnetACIDR
       VpcId: !Ref VPC
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
 
@@ -157,7 +188,7 @@ Resources:
   PrivateSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: 10.0.2.0/24
+      CidrBlock: !Ref PrivateSubnetBCIDR
       VpcId: !Ref VPC
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
 
@@ -172,7 +203,7 @@ Resources:
   PrivateSubnetC:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: 10.0.4.0/24
+      CidrBlock: !Ref PrivateSubnetCCIDR
       VpcId: !Ref VPC
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
 
@@ -189,21 +220,21 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.1.0/24
+      CidrBlock: !Ref PublicSubnetACIDR
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.3.0/24
+      CidrBlock: !Ref PublicSubnetBCIDR
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
 
   PublicSubnetC:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.5.0/24
+      CidrBlock: !Ref PublicSubnetCCIDR
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
 
   # Creating routes for Private Internet Gateways
@@ -493,7 +524,7 @@ Resources:
       Engine: aurora-postgresql
       DBParameterGroupName: !Ref DbParameterGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
-      PubliclyAccessible: 'true'
+      PubliclyAccessible: 'false'
       Tags:
         - Key: Name
           Value: !Join
@@ -511,7 +542,7 @@ Resources:
       Engine: aurora-postgresql
       DBParameterGroupName: !Ref DbParameterGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
-      PubliclyAccessible: 'true'
+      PubliclyAccessible: 'false'
       Tags:
         - Key: Name
           Value: !Join
@@ -529,7 +560,7 @@ Resources:
       Engine: aurora-postgresql
       DBParameterGroupName: !Ref DbParameterGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
-      PubliclyAccessible: 'true'
+      PubliclyAccessible: 'false'
       Tags:
         - Key: Name
           Value: !Join
@@ -577,53 +608,56 @@ Resources:
       ServiceName: !Ref ContainerName
       Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
-      DesiredCount: 2
+      DesiredCount: 3
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
-          Subnets: !Ref PrivateSubnetA
+          Subnets: 
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+            - !Ref PrivateSubnetC
           SecurityGroups: !Ref ContainerSecurityGroup
       LoadBalancers:
         - ContainerName: !Ref ContainerName
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
 
-  ECSServiceB:
-    Type: AWS::ECS::Service
-    Properties:
-      ServiceName: !Ref ContainerName
-      Cluster: !Ref Cluster
-      TaskDefinition: !Ref TaskDefinition
-      DesiredCount: 2
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          Subnets: !Ref PrivateSubnetB
-          SecurityGroups: !Ref ContainerSecurityGroup
-      LoadBalancers:
-        - ContainerName: !Ref ContainerName
-          ContainerPort: !Ref ContainerPort
-          TargetGroupArn: !Ref TargetGroup
+  # ECSServiceB:
+  #   Type: AWS::ECS::Service
+  #   Properties:
+  #     ServiceName: !Ref ContainerName
+  #     Cluster: !Ref Cluster
+  #     TaskDefinition: !Ref TaskDefinition
+  #     DesiredCount: 2
+  #     LaunchType: FARGATE
+  #     NetworkConfiguration:
+  #       AwsvpcConfiguration:
+  #         AssignPublicIp: ENABLED
+  #         Subnets: !Ref PrivateSubnetB
+  #         SecurityGroups: !Ref ContainerSecurityGroup
+  #     LoadBalancers:
+  #       - ContainerName: !Ref ContainerName
+  #         ContainerPort: !Ref ContainerPort
+  #         TargetGroupArn: !Ref TargetGroup
 
-  ECSServiceC:
-    Type: AWS::ECS::Service
-    Properties:
-      ServiceName: !Ref ContainerName
-      Cluster: !Ref Cluster
-      TaskDefinition: !Ref TaskDefinition
-      DesiredCount: 2
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          Subnets: !Ref PrivateSubnetC
-          SecurityGroups: !Ref ContainerSecurityGroup
-      LoadBalancers:
-        - ContainerName: !Ref ContainerName
-          ContainerPort: !Ref ContainerPort
-          TargetGroupArn: !Ref TargetGroup
+  # ECSServiceC:
+  #   Type: AWS::ECS::Service
+  #   Properties:
+  #     ServiceName: !Ref ContainerName
+  #     Cluster: !Ref Cluster
+  #     TaskDefinition: !Ref TaskDefinition
+  #     DesiredCount: 2
+  #     LaunchType: FARGATE
+  #     NetworkConfiguration:
+  #       AwsvpcConfiguration:
+  #         AssignPublicIp: ENABLED
+  #         Subnets: !Ref PrivateSubnetC
+  #         SecurityGroups: !Ref ContainerSecurityGroup
+  #     LoadBalancers:
+  #       - ContainerName: !Ref ContainerName
+  #         ContainerPort: !Ref ContainerPort
+  #         TargetGroupArn: !Ref TargetGroup
 
   # Create a TaskDefinition with container details
   TaskDefinition:
