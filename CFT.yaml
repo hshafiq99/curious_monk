@@ -390,19 +390,55 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRouteTableA
-      SubnetId: !Ref PrivateSubnetA
+      SubnetId: !Ref PublicSubnetA
 
   SubnetBPublicRouteAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRouteTableB
-      SubnetId: !Ref PrivateSubnetB
+      SubnetId: !Ref PublicSubnetB
 
   SubnetCPublicRouteAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRouteTableC
+      SubnetId: !Ref PublicSubnetC
+
+  SubnetAPrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      SubnetId: !Ref PrivateSubnetA
+
+  SubnetBPrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      SubnetId: !Ref PrivateSubnetB
+
+  SubnetCPrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableC
       SubnetId: !Ref PrivateSubnetC
+
+  SubnetADBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref DBRouteTableA
+      SubnetId: !Ref DBSubnetA
+
+  SubnetBDBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref DBRouteTableB
+      SubnetId: !Ref DBSubnetB
+
+  SubnetCDBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref DBRouteTableC
+      SubnetId: !Ref DBSubnetC
 
   # Create Access Role for ECS-Tasks
   ExecutionRole:
@@ -617,7 +653,8 @@ Resources:
             - !Ref PrivateSubnetA
             - !Ref PrivateSubnetB
             - !Ref PrivateSubnetC
-          SecurityGroups: !Ref ContainerSecurityGroup
+          SecurityGroups: 
+            - !Ref ContainerSecurityGroup
       LoadBalancers:
         - ContainerName: !Ref ContainerName
           ContainerPort: !Ref ContainerPort
@@ -635,7 +672,8 @@ Resources:
   #       AwsvpcConfiguration:
   #         AssignPublicIp: ENABLED
   #         Subnets: !Ref PrivateSubnetB
-  #         SecurityGroups: !Ref ContainerSecurityGroup
+  #         SecurityGroups: 
+  #           - !Ref ContainerSecurityGroup
   #     LoadBalancers:
   #       - ContainerName: !Ref ContainerName
   #         ContainerPort: !Ref ContainerPort
@@ -653,7 +691,8 @@ Resources:
   #       AwsvpcConfiguration:
   #         AssignPublicIp: ENABLED
   #         Subnets: !Ref PrivateSubnetC
-  #         SecurityGroups: !Ref ContainerSecurityGroup
+  #         SecurityGroups: 
+  #           - !Ref ContainerSecurityGroup
   #     LoadBalancers:
   #       - ContainerName: !Ref ContainerName
   #         ContainerPort: !Ref ContainerPort
@@ -745,38 +784,13 @@ Resources:
       SecurityGroups:
         - !Ref InstanceSecurityGroup
 
-  BatchInstanceIAMRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          -
-            Effect: 'Allow'
-            Principal:
-              Service:
-                - 'ec2.amazonaws.com'
-            Action:
-              - 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
-
-  BatchInstanceProfile:
-    Type: "AWS::IAM::InstanceProfile"
-    Properties:
-      Path: /
-      Roles:
-        - !Ref BatchInstanceIAMRole
-      InstanceProfileName: !Join [ "", [ "BatchIAM", !Ref Stage ] ]
-
   # Create a security group for Containers and open in bound Container port from Load balancer security group to the Container
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Join ["-", ["fgt", !Ref Stage, "InstanceSecurityGroup"]]
       GroupDescription: !Join ["-", ["fgt", !Ref Stage, "InstanceSecurityGroup"]]
-      VpcId: 
-        Fn::ImportValue: !Sub "fgt-${Stage}-ClusterVPC"
+      VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80

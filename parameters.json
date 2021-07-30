@@ -37,7 +37,7 @@
     },
     {
         "ParameterKey":"ContainerPort",
-        "ParameterValue":"8000"
+        "ParameterValue":8000
     },
     {
         "ParameterKey":"ImageURI",
@@ -45,42 +45,42 @@
     },
     {
         "ParameterKey":"DBSubnetACIDR",
-        "ParameterValue":"10.0.6.0/24"
+        "ParameterValue":10.0.6.0/24
     },
     {
         "ParameterKey":"DBSubnetBCIDR",
-        "ParameterValue":"10.0.7.0/24"
+        "ParameterValue":10.0.7.0/24
     },
     {
         "ParameterKey":"DBSubnetCCIDR",
-        "ParameterValue":"10.0.8.0/24"
+        "ParameterValue":10.0.8.0/24
     },
     {
         "ParameterKey":"PrivateSubnetACIDR",
-        "ParameterValue":"10.0.0.0/24"
+        "ParameterValue":10.0.0.0/24
     },
     {
         "ParameterKey":"PrivateSubnetBCIDR",
-        "ParameterValue":"10.0.2.0/24"
+        "ParameterValue":10.0.2.0/24
     },
     {
         "ParameterKey":"PrivateSubnetCCIDR",
-        "ParameterValue":"10.0.4.0/24"
+        "ParameterValue":10.0.4.0/24
     },
     {
         "ParameterKey":"PublicSubnetACIDR",
-        "ParameterValue":"10.0.1.0/24"
+        "ParameterValue":10.0.1.0/24
     },
     {
         "ParameterKey":"PublicSubnetBCIDR",
-        "ParameterValue":"10.0.3.0/24"
+        "ParameterValue":10.0.3.0/24
     },
     {
         "ParameterKey":"PublicSubnetCCIDR",
-        "ParameterValue":"10.0.5.0/24"
+        "ParameterValue":10.0.5.0/24
     },
     {
         "ParameterKey":"VpcCIDR",
-        "ParameterValue":"10.0.0.0/22"
+        "ParameterValue":10.0.0.0/22
     }
 ]
