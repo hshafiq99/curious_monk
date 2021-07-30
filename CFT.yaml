@@ -555,6 +555,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBClusterIdentifier: !Ref DBCluster
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
       DBInstanceIdentifier: !Ref DBIdentifierNameMaster
       DBInstanceClass: !Ref DbType
       Engine: aurora-postgresql
@@ -573,6 +574,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBClusterIdentifier: !Ref DBCluster
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
       DBInstanceIdentifier: !Ref DBIdentifierNameReplicaA
       DBInstanceClass: !Ref DbType
       Engine: aurora-postgresql
@@ -591,6 +593,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBClusterIdentifier: !Ref DBCluster
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
       DBInstanceIdentifier: !Ref DBIdentifierNameReplicaB
       DBInstanceClass: !Ref DbType
       Engine: aurora-postgresql
@@ -603,7 +606,7 @@ Resources:
             - ''
             - - Read Replica Database-
               - !Ref Stage
-              - '-app-db'
+              - '-app-db2s'
 
   # Pass parameters to Cluster and DBs
   RDSDBClusterParameterGroup:
