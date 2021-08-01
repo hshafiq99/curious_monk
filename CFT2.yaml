@@ -1,0 +1,1047 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Core ECS & Aurora Clusters
+
+Parameters:
+  EnvType:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+    ConstraintDescription: must specify either dev or prod.
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: test
+  AmiID:
+    Type: String
+    Default: ami-0233c2d874b811deb 
+  DbName:
+    Description: App Db Name
+    Default: hotgreenfuzz
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: "^[a-zA-Z]+[0-9a-zA-Z_]*$"
+    ConstraintDescription: Must start with a letter. Only numbers, letters, and _ accepted. max length 64 characters
+  DbType:
+    Description: App Db server RDS instance type
+    Type: String
+    Default: db.r5.large
+    AllowedValues:
+      - db.r5.large
+      - db.r5.xlarge
+      - db.r5.2xlarge
+      - db.r5.4xlarge
+      - db.r5.8xlarge
+    ConstraintDescription: must be a valid RDS instance type.
+  DBIdentifierNameMaster:
+    Description: The string that will be prefixed to each instance name
+    Default: devmaster
+    Type: String
+    MinLength: '3'
+    MaxLength: '10'
+    AllowedPattern: '[a-z0-9]*'
+    ConstraintDescription: Identifier names must be 3-6 characters and contain only a-z and 0-9.
+  DBIdentifierNameReplicaA:
+    Description: The string that will be prefixed to each instance name
+    Default: replia
+    Type: String
+    MinLength: '3'
+    MaxLength: '10'
+    AllowedPattern: '[a-z0-9]*'
+    ConstraintDescription: Identifier names must be 3-10 characters and contain only a-z and 0-9.
+  DBIdentifierNameReplicaB:
+    Description: The string that will be prefixed to each instance name
+    Default: replib
+    Type: String
+    MinLength: '3'
+    MaxLength: '10'
+    AllowedPattern: '[a-z0-9]*'
+    ConstraintDescription: Identifier names must be 3-10 characters and contain only a-z and 0-9.
+  ContainerName:
+    Type: String
+    Default: test
+  ContainerPort:
+    Type: Number
+    Default: 80
+  ImageURI:
+    Type: String
+    Default: "nginx"
+  VpcCIDR:
+    Type: String
+    Default: "10.0.0.0/20"
+  DBSubnetACIDR:
+    Type: String
+    Default: "10.0.6.0/24"
+  DBSubnetBCIDR:
+    Type: String
+    Default: "10.0.7.0/24"
+  DBSubnetCCIDR:
+    Type: String
+    Default: "10.0.8.0/24"
+  PrivateSubnetACIDR:
+    Type: String
+    Default: "10.0.0.0/24"
+  PrivateSubnetBCIDR:
+    Type: String
+    Default: "10.0.2.0/24"
+  PrivateSubnetCCIDR:
+    Type: String
+    Default: "10.0.4.0/24"
+  PublicSubnetACIDR:
+    Type: String
+    Default: "10.0.1.0/24"
+  PublicSubnetBCIDR:
+    Type: String
+    Default: "10.0.3.0/24"
+  PublicSubnetCCIDR:
+    Type: String
+    Default: "10.0.5.0/24"
+
+Resources:
+  # Create an ECS Cluster
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Join ["-", ["test", !Ref EnvType]]
+
+
+
+###############VPC and Network Wiring
+  # Create a VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["vpc", !Ref EnvType]]
+
+  # Create an Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  # Attach the internet gateway to the VPC
+  VPCInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  ################ Create Private Subnets
+  DBSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref DBSubnetACIDR
+      VpcId: !Ref VPC
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["db-subnet",!Ref "AWS::Region", "a"]]
+
+  DBSubnetANetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "DBSubnetA"
+      NetworkAclId:
+        Ref: "DBSubnetNACL"
+
+  DBSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref DBSubnetBCIDR
+      VpcId: !Ref VPC
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["db-subnet",!Ref "AWS::Region", "b"]]
+
+  DBSubnetBNetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "DBSubnetB"
+      NetworkAclId:
+        Ref: "DBSubnetNACL"
+
+  DBSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref DBSubnetCCIDR
+      VpcId: !Ref VPC
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["db-subnet",!Ref "AWS::Region", "c"]]
+
+  DBSubnetCNetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "DBSubnetC"
+      NetworkAclId:
+        Ref: "DBSubnetNACL"
+
+  # Create Private Subnets
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivateSubnetACIDR
+      VpcId: !Ref VPC
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["private-subnet",!Ref "AWS::Region", "a"]]
+
+  PrivateSubnetANetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnetA"
+      NetworkAclId:
+        Ref: "PrivateSubnetNACL"
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivateSubnetBCIDR
+      VpcId: !Ref VPC
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["private-subnet",!Ref "AWS::Region", "b"]]
+
+  PrivateSubnetBNetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnetB"
+      NetworkAclId:
+        Ref: "PrivateSubnetNACL"
+
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivateSubnetCCIDR
+      VpcId: !Ref VPC
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["private-subnet",!Ref "AWS::Region", "c"]]
+
+  PrivateSubnetCNetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnetC"
+      NetworkAclId:
+        Ref: "PrivateSubnetNACL"
+
+  # Create Public Subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetACIDR
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["public-subnet",!Ref "AWS::Region", "a"]]
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBCIDR
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["public-subnet",!Ref "AWS::Region", "b"]]
+
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetCCIDR
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["public-subnet",!Ref "AWS::Region", "c"]]
+
+  # Creating routes for Private Internet Gateways
+  PrivateRouteA:
+    DependsOn:
+      - InternetGateway
+    Type: AWS::EC2::Route
+    Properties:
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NATA
+        RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateRouteB:
+    DependsOn:
+      - InternetGateway
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATB
+      RouteTableId: !Ref PrivateRouteTableB
+
+  PrivateRouteC:
+    DependsOn:
+      - InternetGateway
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATC
+      RouteTableId: !Ref PrivateRouteTableC
+
+  # Creating routes for Public Internet Access
+  PublicRouteA:
+    DependsOn: VPCInternetGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTableA
+
+  PublicRouteB:
+    DependsOn: VPCInternetGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTableB
+
+  PublicRouteC:
+    DependsOn: VPCInternetGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTableC
+
+  # Create Route Tables to allow access from the internet
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  # Create Route Tables to allow access to the internet
+  PublicRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  # Create Route Tables to allow access to the database
+  DBRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DBRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DBRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  # Create NAT Gateways in Public Subnets
+  NATA:
+   Type: AWS::EC2::NatGateway
+   Properties:
+      AllocationId:
+         Fn::GetAtt:
+         - EIPA
+         - AllocationId
+      SubnetId: !Ref PublicSubnetA
+
+  NATB:
+   Type: AWS::EC2::NatGateway
+   Properties:
+      AllocationId:
+         Fn::GetAtt:
+         - EIPB
+         - AllocationId
+      SubnetId: !Ref PublicSubnetB
+
+  NATC:
+   Type: AWS::EC2::NatGateway
+   Properties:
+      AllocationId:
+         Fn::GetAtt:
+         - EIPC
+         - AllocationId
+      SubnetId: !Ref PublicSubnetC
+
+  # Create Elastic IP Address for Private Internet Gateways
+  EIPA:
+   DependsOn: VPCInternetGatewayAttachment
+   Type: AWS::EC2::EIP
+   Properties:
+      Domain: vpc
+
+  EIPB:
+   DependsOn: VPCInternetGatewayAttachment
+   Type: AWS::EC2::EIP
+   Properties:
+      Domain: vpc
+
+  EIPC:
+   DependsOn: VPCInternetGatewayAttachment
+   Type: AWS::EC2::EIP
+   Properties:
+      Domain: vpc
+
+  # Attach Public Route to PrivateSubnets
+  SubnetAPublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableA
+      SubnetId: !Ref PublicSubnetA
+
+  SubnetBPublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableB
+      SubnetId: !Ref PublicSubnetB
+
+  SubnetCPublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableC
+      SubnetId: !Ref PublicSubnetC
+
+  SubnetAPrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      SubnetId: !Ref PrivateSubnetA
+
+  SubnetBPrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      SubnetId: !Ref PrivateSubnetB
+
+  SubnetCPrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableC
+      SubnetId: !Ref PrivateSubnetC
+
+  SubnetADBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      SubnetId: !Ref DBSubnetA
+
+  SubnetBDBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      SubnetId: !Ref DBSubnetB
+
+  SubnetCDBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableC
+      SubnetId: !Ref DBSubnetC
+
+  DBSubnetNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+       VpcId: !Ref VPC
+
+  DBSubnetNACLInboundRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+       NetworkAclId:
+         Ref: DBSubnetNACL
+       RuleNumber: 100
+       Protocol: 6
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 22
+         To: 22
+
+  DBSubnetNACLOutboundRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+       NetworkAclId:
+         Ref: DBSubnetNACL
+       RuleNumber: 100
+       Protocol: -1
+       Egress: true
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+
+  PrivateSubnetNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+       VpcId: !Ref VPC
+
+  PrivateSubnetNACLInboundRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+       NetworkAclId:
+         Ref: PrivateSubnetNACL
+       RuleNumber: 100
+       Protocol: 6
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 22
+         To: 22
+
+  PrivateSubnetNACLOutboundRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+       NetworkAclId:
+         Ref: PrivateSubnetNACL
+       RuleNumber: 100
+       Protocol: -1
+       Egress: true
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+
+##############IAM ROLE
+
+  # Create Access Role for ECS-Tasks
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref EnvType, "ExecutionRole"]]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: "sts:AssumeRole"
+
+
+########## SGs
+  # # Create a security group for load balancer and open ports 80/443 in bound from internet
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", [!Ref EnvType, "LoadBalancerSecurityGroup"]]
+      GroupDescription: !Join ["-", [!Ref EnvType, "LoadBalancerSecurityGroup"]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  # # Create a security group for Containers and open in bound Container port from Load balancer security group to the Containers
+  ContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", ["test", !Ref EnvType, "ContainerSecurityGroup"]]
+      GroupDescription: !Join ["-", ["test", !Ref EnvType, "ContainerSecurityGroup"]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !Ref "LoadBalancerSecurityGroup"
+# Create a security group for Containers and open in bound Container port from Load balancer security group to the Container
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", ["fgt", !Ref EnvType, "InstanceSecurityGroup"]]
+      GroupDescription: !Join ["-", ["fgt", !Ref EnvType, "InstanceSecurityGroup"]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: HTTP Traffic from LoadBalancer
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: HTTPS Traffic from LoadBalancer
+          
+  # # ############Create a load balancer adn ASG
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: !Ref EnvType
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: 'idle_timeout.timeout_seconds'
+          Value: 120
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+        - !Ref PrivateSubnetC
+      Type: application
+
+  # # Create a Load Balancer Listener
+  HTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: "text/plain"
+            MessageBody: "Service Unavailable"
+            StatusCode: "503"
+
+
+  # Create a TargetGroup for HTTP port 80
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ["-", [!Ref ContainerName, !Ref EnvType]]
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VPC
+
+
+  HTTPListenerRuleWeb:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - "test.com"
+      ListenerArn: !Ref HTTPListener
+      Priority: 1
+
+  #Create Auto Scaling Group
+  EC2AutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      AvailabilityZones:
+        - !Join ["", [!Ref "AWS::Region", "a"]]
+        - !Join ["", [!Ref "AWS::Region", "b"]]
+        - !Join ["", [!Ref "AWS::Region", "c"]]
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+        - !Ref PrivateSubnetC
+      LaunchConfigurationName: !Ref ContainerInstances
+      MinSize: '3'
+      MaxSize: '3'
+      DesiredCapacity: '3'
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT30M
+    # UpdatePolicy:
+    #   AutoScalingRollingUpdate:
+    #     MinInstancesInService: '1'
+    #     MaxBatchSize: '1'
+    #     PauseTime: PT30M
+    #     WaitOnResourceSignals: 'true'
+
+  ContainerInstances:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Properties:
+      ImageId: !Ref AmiID
+      InstanceType: t2.micro
+      #IamInstanceProfile: !Ref BatchInstanceProfile
+      KeyName: !Ref KeyName
+      AssociatePublicIpAddress: true
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
+
+#####################END LB AND ASG
+
+###################### Start RDS
+  # # # Create a DB Subnet Group
+  # DBSubnetGroup:
+  #   Type: AWS::RDS::DBSubnetGroup
+  #   Properties:
+  #     DBSubnetGroupDescription:  DB subnet groups
+  #     SubnetIds:
+  #       - !Ref DBSubnetA
+  #       - !Ref DBSubnetB
+  #       - !Ref DBSubnetC
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Join
+  #           - ''
+  #           - - PROJECT_NAME-
+  #             - !Ref EnvType
+  #             - '-db'
+
+  # # Create a Aurora Postgres DB Cluster
+  # DBCluster:
+  #   Type: AWS::RDS::DBCluster
+  #   Properties:
+  #     Engine: aurora-postgresql
+  #     MasterUsername: testuser
+  #     MasterUserPassword: Pass123456789
+  #     DatabaseName: !Ref DbName
+  #     DBSubnetGroupName: !Ref DBSubnetGroup
+  #     DBClusterParameterGroupName: !Ref RDSDBClusterParameterGroup
+  #     VpcSecurityGroupIds:
+  #       - !Ref ContainerSecurityGroup
+  #     EnableCloudwatchLogsExports: [postgresql]
+
+  # RDSinstanceMaster:
+  #   DependsOn: DBCluster
+  #   Type: AWS::RDS::DBInstance
+  #   Properties:
+  #     AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
+  #     DBClusterIdentifier: !Ref DBCluster
+  #     DBInstanceIdentifier: !Ref DBIdentifierNameMaster
+  #     DBInstanceClass: !Ref DbType
+  #     Engine: aurora-postgresql
+  #     DBParameterGroupName: !Ref DbParameterGroup
+  #     DBSubnetGroupName: !Ref DBSubnetGroup
+  #     PubliclyAccessible: 'false'
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Join
+  #           - ''
+  #           - - Master Database-
+  #             - !Ref EnvType
+  #             - '-app-db'
+
+  # RDSinstanceReplicaA:
+  #   DependsOn: RDSinstanceMaster
+  #   Type: AWS::RDS::DBInstance
+  #   Properties:
+  #     AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
+  #     DBClusterIdentifier: !Ref DBCluster
+  #     DBInstanceIdentifier: !Ref DBIdentifierNameReplicaA
+  #     DBInstanceClass: !Ref DbType
+  #     Engine: aurora-postgresql
+  #     DBParameterGroupName: !Ref DbParameterGroup
+  #     DBSubnetGroupName: !Ref DBSubnetGroup
+  #     PubliclyAccessible: 'false'
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Join
+  #           - ''
+  #           - - Read Replica Database-
+  #             - !Ref EnvType
+  #             - '-app-db'
+
+  # RDSinstanceReplicaB:
+  #   DependsOn: RDSinstanceMaster
+  #   Type: AWS::RDS::DBInstance
+  #   Properties:
+  #     AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
+  #     DBClusterIdentifier: !Ref DBCluster
+  #     DBInstanceIdentifier: !Ref DBIdentifierNameReplicaB
+  #     DBInstanceClass: !Ref DbType
+  #     Engine: aurora-postgresql
+  #     DBParameterGroupName: !Ref DbParameterGroup
+  #     DBSubnetGroupName: !Ref DBSubnetGroup
+  #     PubliclyAccessible: 'false'
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Join
+  #           - ''
+  #           - - Read Replica Database-
+  #             - !Ref EnvType
+  #             - '-app-db'
+
+  # # Pass parameters to Cluster and DBs
+  # RDSDBClusterParameterGroup:
+  #   Type: AWS::RDS::DBClusterParameterGroup
+  #   Properties:
+  #     Description: !Join [ "- ", [ "Aurora PG Cluster Parameter Group for  Cloudformation Stack "] ]
+  #     Family: aurora-postgresql11
+  #     Parameters:
+  #       rds.force_ssl: 1
+
+  # DbParameterGroup:
+  #   Type: AWS::RDS::DBParameterGroup
+  #   Properties:
+  #     Description: !Join [ "- ", [ "Aurora PG Database Instance Parameter Group for Cloudformation Stack "] ]
+  #     Family: aurora-postgresql11
+  #     Parameters:
+  #       shared_preload_libraries: auto_explain,pg_stat_statements,pg_hint_plan,pgaudit
+  #       log_statement: "ddl"
+  #       log_connections: 1
+  #       log_disconnections: 1
+  #       log_lock_waits: 1
+  #       log_min_duration_statement: 5000
+  #       auto_explain.log_min_duration: 5000
+  #       auto_explain.log_verbose: 1
+  #       log_rotation_age: 1440
+  #       log_rotation_size: 102400
+  #       rds.log_retention_period: 10080
+  #       random_page_cost: 1
+  #       track_activity_query_size: 16384
+  #       idle_in_transaction_session_timeout: 7200000
+  #       statement_timeout: 7200000
+  #       search_path: '"$user",public'
+
+
+###################### End RDS
+
+
+
+  # Create an ECS Service and add created Cluster, TaskDefintion, Subnets, TargetGroup and SecurityGroup
+  ECSServiceA:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Ref ContainerName
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 3
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: 
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+            - !Ref PrivateSubnetC
+          SecurityGroups: 
+            - !Ref ContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: !Ref ContainerName
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
+
+  # # ECSServiceB:
+  # #   Type: AWS::ECS::Service
+  # #   Properties:
+  # #     ServiceName: !Ref ContainerName
+  # #     Cluster: !Ref Cluster
+  # #     TaskDefinition: !Ref TaskDefinition
+  # #     DesiredCount: 2
+  # #     LaunchType: FARGATE
+  # #     NetworkConfiguration:
+  # #       AwsvpcConfiguration:
+  # #         AssignPublicIp: ENABLED
+  # #         Subnets: !Ref PrivateSubnetB
+  # #         SecurityGroups: 
+  # #           - !Ref ContainerSecurityGroup
+  # #     LoadBalancers:
+  # #       - ContainerName: !Ref ContainerName
+  # #         ContainerPort: !Ref ContainerPort
+  # #         TargetGroupArn: !Ref TargetGroup
+
+  # # ECSServiceC:
+  # #   Type: AWS::ECS::Service
+  # #   Properties:
+  # #     ServiceName: !Ref ContainerName
+  # #     Cluster: !Ref Cluster
+  # #     TaskDefinition: !Ref TaskDefinition
+  # #     DesiredCount: 2
+  # #     LaunchType: FARGATE
+  # #     NetworkConfiguration:
+  # #       AwsvpcConfiguration:
+  # #         AssignPublicIp: ENABLED
+  # #         Subnets: !Ref PrivateSubnetC
+  # #         SecurityGroups: 
+  # #           - !Ref ContainerSecurityGroup
+  # #     LoadBalancers:
+  # #       - ContainerName: !Ref ContainerName
+  # #         ContainerPort: !Ref ContainerPort
+  # #         TargetGroupArn: !Ref TargetGroup
+
+  # Create a TaskDefinition with container details
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Join ["-", [!Ref ContainerName, !Ref EnvType]]
+      Memory: 1024
+      Cpu: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !Ref ExecutionRole
+      ExecutionRoleArn: !Ref ExecutionRole
+      ContainerDefinitions:
+        - Name: !Ref ContainerName
+          Image: !Ref ImageURI
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              HostPort: !Ref ContainerPort
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Join ["-", [!Ref ContainerName, !Ref EnvType]]
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  # Create a Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ["-", [!Ref ContainerName, !Ref EnvType]]
+      RetentionInDays: 365
+
+
+
+
+
+# Outputs:
+#   Cluster:
+#     Description: The cluster
+#     Value: !Ref Cluster
+#     Export:
+#       Name: !Sub "${AWS::StackName}-Cluster"
+#   ExecutionRole:
+#     Description: The task execution role
+#     Value: !Ref ExecutionRole
+#     Export:
+#       Name: !Sub "${AWS::StackName}-ExecutionRole"
+#   ClusterVPC:
+#     Description: The ID of the VPC
+#     Value: !Ref VPC
+#     Export:
+#       Name: !Sub "${AWS::StackName}-ClusterVPC"
+#   ContainerSecurityGroup:
+#     Description: The Container Security Group
+#     Value: !Ref ContainerSecurityGroup
+#     Export:
+#       Name: !Sub "${AWS::StackName}-ContainerSecurityGroup"
+#   PrivateSubnetA:
+#     Description: Subnets used by cluster
+#     Value: !Ref PrivateSubnetA
+#     Export:
+#         Name: !Sub "${AWS::StackName}-PrivateSubnetA"
+#   PrivateSubnetB:
+#     Description: Subnets used by cluster
+#     Value: !Ref PrivateSubnetB
+#     Export:
+#         Name: !Sub "${AWS::StackName}-PrivateSubnetB"
+#   LoadBalancer:
+#     Description: The loadbalancer
+#     Value: !Ref LoadBalancer
+#     Export:
+#       Name: !Sub "${AWS::StackName}-LoadBalancer"
+#   HTTPListener:
+#     Description: The http listener
+#     Value: !Ref HTTPListener
+#     Export:
+#       Name: !Sub "${AWS::StackName}-HTTPListener"
+#   DBSubnetGroup:
+#     Description: The DB Subnet Group
+#     Value: !Ref DBSubnetGroup
+#     Export:
+#       Name: !Sub "${AWS::StackName}-DBSubnetGroup"
+#   DBCluster:
+#     Description: The Aurora Postgres Cluster
+#     Value: !Ref DBCluster
+#     Export:
+#       Name: !Sub "${AWS::StackName}-DBCluster"
+#   DBEndpoint:
+#     Description: The Postgres Read/Write Endpoint
+#     Value: !GetAtt DBCluster.Endpoint.Address
+#     Export:
+#       Name: !Sub "${AWS::StackName}-DBEndpoint"
+#   DBReadEndpoint:
+#     Description: The Postgres Read-Only Endpoint
+#     Value: !GetAtt DBCluster.ReadEndpoint.Address
+#     Export:
+#       Name: !Sub "${AWS::StackName}-DBReadEndpoint"
+#   RDSinstanceMaster:
+#     Description: The Aurora Postgres Cluster Main Instance
+#     Value: !Ref RDSinstanceMaster
+#     Export:
+#       Name: !Sub "${AWS::StackName}-RDSinstanceMaster"
+#   RDSinstanceReplicaA:
+#     Description: The Aurora Postgres Cluster Read Replica
+#     Value: !Ref RDSinstanceReplicaA
+#     Export:
+#       Name: !Sub "${AWS::StackName}-RDSinstanceReplicaA"
+#   RDSinstanceReplicaB:
+#     Description: The Aurora Postgres Cluster Read Replica
+#     Value: !Ref RDSinstanceReplicaB
+#     Export:
+#       Name: !Sub "${AWS::StackName}-RDSinstanceReplicaB"
+#   DbParameterGroup:
+#     Description: The DB Parameter Group
+#     Value: !Ref DbParameterGroup
+#     Export:
+#       Name: !Sub "${AWS::StackName}-DbParameterGroup"
+#   PublicSubnetA:
+#     Description: The Public Subnet A for NAT Gateway
+#     Value: !Ref PublicSubnetA
+#     Export:
+#       Name: !Sub "${AWS::StackName}-PublicSubnetA"
+#   PublicSubnetB:
+#     Description: The Public Subnet B for NAT Gateway
+#     Value: !Ref PublicSubnetB
+#     Export:
+#       Name: !Sub "${AWS::StackName}-PublicSubnetB"
+#   NATA:
+#     Description: The NAT Gateway for Public Subnet A
+#     Value: !Ref NATA
+#     Export:
+#       Name: !Sub "${AWS::StackName}-NATA"
+#   EIPA:
+#     Description: The Elastic IP address for Private Internet Gateway A
+#     Value: !Ref EIPA
+#     Export:
+#       Name: !Sub "${AWS::StackName}-EIPA"
+#   PrivateRouteA:
+#     Description: The Route for Private Internet Gateway in Subnet A
+#     Value: !Ref PrivateRouteA
+#     Export:
+#       Name: !Sub "${AWS::StackName}-PrivateRouteA"
+#   NATB:
+#     Description: The NAT Gateway for Public Subnet B
+#     Value: !Ref NATB
+#     Export:
+#       Name: !Sub "${AWS::StackName}-NATB"
+#   EIPB:
+#     Description: The Elastic IP address for Private Internet Gateway B
+#     Value: !Ref EIPB
+#     Export:
+#       Name: !Sub "${AWS::StackName}-EIPB"
+#   PrivateRouteB:
+#     Description: The Route for Private Internet Gateway in Subnet B
+#     Value: !Ref PrivateRouteB
+#     Export:
+#       Name: !Sub "${AWS::StackName}-PrivateRouteB"

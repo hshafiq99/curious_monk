@@ -41,7 +41,7 @@
     },
     {
         "ParameterKey":"ImageURI",
-        "ParameterValue":"amazon/amazon-ecs-sample"
+        "ParameterValue":"httpd:2.4"
     },
     {
         "ParameterKey":"DBSubnetACIDR",
