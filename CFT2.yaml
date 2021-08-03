@@ -95,6 +95,9 @@ Parameters:
   PublicSubnetCCIDR:
     Type: String
     Default: "10.0.5.0/24"
+  DesiredCount:
+    Type: Number
+    Default: 3
 
 Resources:
   # Create an ECS Cluster
@@ -835,7 +838,7 @@ Resources:
       ServiceName: !Ref ContainerName
       Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
-      DesiredCount: 3
+      DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
@@ -921,9 +924,66 @@ Resources:
       LogGroupName: !Join ["-", [!Ref ContainerName, !Ref EnvType]]
       RetentionInDays: 365
 
+  ApplicationAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - application-autoscaling.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: ECSScalingRole
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:UpdateService
+                  - ecs:DescribeServices
+                  - application-autoscaling:*
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:GetMetricStatistics
+                Resource: "*"
 
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 9
+      MinCapacity: 1
+      ResourceId: 
+        Fn::Join:
+        - "/"
+        - - service
+          - Ref: Cluster
+          - Fn::GetAtt:
+            - ECSServiceA
+            - Name
+      RoleARN:
+        Fn::GetAtt:
+        - ApplicationAutoScalingRole
+        - Arn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
 
-
+  # ECS Scaling Policy
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ECSScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId:
+        Ref: AutoScalingTarget
+      ServiceNamespace: ecs
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 75.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
 
 # Outputs:
 #   Cluster:
