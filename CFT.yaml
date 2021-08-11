@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Core ECS & Aurora Clusters
 
+
 Parameters:
   Stage:
     Type: String
