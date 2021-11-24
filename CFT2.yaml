@@ -698,132 +698,132 @@ Resources:
 
 #####################END LB AND ASG
 
-###################### Start RDS
-  # # # Create a DB Subnet Group
-  # DBSubnetGroup:
-  #   Type: AWS::RDS::DBSubnetGroup
-  #   Properties:
-  #     DBSubnetGroupDescription:  DB subnet groups
-  #     SubnetIds:
-  #       - !Ref DBSubnetA
-  #       - !Ref DBSubnetB
-  #       - !Ref DBSubnetC
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Join
-  #           - ''
-  #           - - PROJECT_NAME-
-  #             - !Ref EnvType
-  #             - '-db'
+##################### Start RDS
+  # # Create a DB Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription:  DB subnet groups
+      SubnetIds:
+        - !Ref DBSubnetA
+        - !Ref DBSubnetB
+        - !Ref DBSubnetC
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - PROJECT_NAME-
+              - !Ref EnvType
+              - '-db'
 
-  # # Create a Aurora Postgres DB Cluster
-  # DBCluster:
-  #   Type: AWS::RDS::DBCluster
-  #   Properties:
-  #     Engine: aurora-postgresql
-  #     MasterUsername: testuser
-  #     MasterUserPassword: Pass123456789
-  #     DatabaseName: !Ref DbName
-  #     DBSubnetGroupName: !Ref DBSubnetGroup
-  #     DBClusterParameterGroupName: !Ref RDSDBClusterParameterGroup
-  #     VpcSecurityGroupIds:
-  #       - !Ref ContainerSecurityGroup
-  #     EnableCloudwatchLogsExports: [postgresql]
+  # Create a Aurora Postgres DB Cluster
+  DBCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-postgresql
+      MasterUsername: testuser
+      MasterUserPassword: Pass123456789
+      DatabaseName: !Ref DbName
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBClusterParameterGroupName: !Ref RDSDBClusterParameterGroup
+      VpcSecurityGroupIds:
+        - !Ref ContainerSecurityGroup
+      EnableCloudwatchLogsExports: [postgresql]
 
-  # RDSinstanceMaster:
-  #   DependsOn: DBCluster
-  #   Type: AWS::RDS::DBInstance
-  #   Properties:
-  #     AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
-  #     DBClusterIdentifier: !Ref DBCluster
-  #     DBInstanceIdentifier: !Ref DBIdentifierNameMaster
-  #     DBInstanceClass: !Ref DbType
-  #     Engine: aurora-postgresql
-  #     DBParameterGroupName: !Ref DbParameterGroup
-  #     DBSubnetGroupName: !Ref DBSubnetGroup
-  #     PubliclyAccessible: 'false'
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Join
-  #           - ''
-  #           - - Master Database-
-  #             - !Ref EnvType
-  #             - '-app-db'
+  RDSinstanceMaster:
+    DependsOn: DBCluster
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
+      DBClusterIdentifier: !Ref DBCluster
+      DBInstanceIdentifier: !Ref DBIdentifierNameMaster
+      DBInstanceClass: !Ref DbType
+      Engine: aurora-postgresql
+      DBParameterGroupName: !Ref DbParameterGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: 'false'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - Master Database-
+              - !Ref EnvType
+              - '-app-db'
 
-  # RDSinstanceReplicaA:
-  #   DependsOn: RDSinstanceMaster
-  #   Type: AWS::RDS::DBInstance
-  #   Properties:
-  #     AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
-  #     DBClusterIdentifier: !Ref DBCluster
-  #     DBInstanceIdentifier: !Ref DBIdentifierNameReplicaA
-  #     DBInstanceClass: !Ref DbType
-  #     Engine: aurora-postgresql
-  #     DBParameterGroupName: !Ref DbParameterGroup
-  #     DBSubnetGroupName: !Ref DBSubnetGroup
-  #     PubliclyAccessible: 'false'
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Join
-  #           - ''
-  #           - - Read Replica Database-
-  #             - !Ref EnvType
-  #             - '-app-db'
+  RDSinstanceReplicaA:
+    DependsOn: RDSinstanceMaster
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
+      DBClusterIdentifier: !Ref DBCluster
+      DBInstanceIdentifier: !Ref DBIdentifierNameReplicaA
+      DBInstanceClass: !Ref DbType
+      Engine: aurora-postgresql
+      DBParameterGroupName: !Ref DbParameterGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: 'false'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - Read Replica Database-
+              - !Ref EnvType
+              - '-app-db'
 
-  # RDSinstanceReplicaB:
-  #   DependsOn: RDSinstanceMaster
-  #   Type: AWS::RDS::DBInstance
-  #   Properties:
-  #     AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
-  #     DBClusterIdentifier: !Ref DBCluster
-  #     DBInstanceIdentifier: !Ref DBIdentifierNameReplicaB
-  #     DBInstanceClass: !Ref DbType
-  #     Engine: aurora-postgresql
-  #     DBParameterGroupName: !Ref DbParameterGroup
-  #     DBSubnetGroupName: !Ref DBSubnetGroup
-  #     PubliclyAccessible: 'false'
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Join
-  #           - ''
-  #           - - Read Replica Database-
-  #             - !Ref EnvType
-  #             - '-app-db'
+  RDSinstanceReplicaB:
+    DependsOn: RDSinstanceMaster
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "c"]]
+      DBClusterIdentifier: !Ref DBCluster
+      DBInstanceIdentifier: !Ref DBIdentifierNameReplicaB
+      DBInstanceClass: !Ref DbType
+      Engine: aurora-postgresql
+      DBParameterGroupName: !Ref DbParameterGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: 'false'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - Read Replica Database-
+              - !Ref EnvType
+              - '-app-db'
 
-  # # Pass parameters to Cluster and DBs
-  # RDSDBClusterParameterGroup:
-  #   Type: AWS::RDS::DBClusterParameterGroup
-  #   Properties:
-  #     Description: !Join [ "- ", [ "Aurora PG Cluster Parameter Group for  Cloudformation Stack "] ]
-  #     Family: aurora-postgresql11
-  #     Parameters:
-  #       rds.force_ssl: 1
+  # Pass parameters to Cluster and DBs
+  RDSDBClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: !Join [ "- ", [ "Aurora PG Cluster Parameter Group for  Cloudformation Stack "] ]
+      Family: aurora-postgresql11
+      Parameters:
+        rds.force_ssl: 1
 
-  # DbParameterGroup:
-  #   Type: AWS::RDS::DBParameterGroup
-  #   Properties:
-  #     Description: !Join [ "- ", [ "Aurora PG Database Instance Parameter Group for Cloudformation Stack "] ]
-  #     Family: aurora-postgresql11
-  #     Parameters:
-  #       shared_preload_libraries: auto_explain,pg_stat_statements,pg_hint_plan,pgaudit
-  #       log_statement: "ddl"
-  #       log_connections: 1
-  #       log_disconnections: 1
-  #       log_lock_waits: 1
-  #       log_min_duration_statement: 5000
-  #       auto_explain.log_min_duration: 5000
-  #       auto_explain.log_verbose: 1
-  #       log_rotation_age: 1440
-  #       log_rotation_size: 102400
-  #       rds.log_retention_period: 10080
-  #       random_page_cost: 1
-  #       track_activity_query_size: 16384
-  #       idle_in_transaction_session_timeout: 7200000
-  #       statement_timeout: 7200000
-  #       search_path: '"$user",public'
+  DbParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: !Join [ "- ", [ "Aurora PG Database Instance Parameter Group for Cloudformation Stack "] ]
+      Family: aurora-postgresql11
+      Parameters:
+        shared_preload_libraries: auto_explain,pg_stat_statements,pg_hint_plan,pgaudit
+        log_statement: "ddl"
+        log_connections: 1
+        log_disconnections: 1
+        log_lock_waits: 1
+        log_min_duration_statement: 5000
+        auto_explain.log_min_duration: 5000
+        auto_explain.log_verbose: 1
+        log_rotation_age: 1440
+        log_rotation_size: 102400
+        rds.log_retention_period: 10080
+        random_page_cost: 1
+        track_activity_query_size: 16384
+        idle_in_transaction_session_timeout: 7200000
+        statement_timeout: 7200000
+        search_path: '"$user",public'
 
 
-###################### End RDS
+##################### End RDS
 
 
 
@@ -853,44 +853,6 @@ Resources:
         - ContainerName: !Ref ContainerName
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
-
-  # # ECSServiceB:
-  # #   Type: AWS::ECS::Service
-  # #   Properties:
-  # #     ServiceName: !Ref ContainerName
-  # #     Cluster: !Ref Cluster
-  # #     TaskDefinition: !Ref TaskDefinition
-  # #     DesiredCount: 2
-  # #     LaunchType: FARGATE
-  # #     NetworkConfiguration:
-  # #       AwsvpcConfiguration:
-  # #         AssignPublicIp: ENABLED
-  # #         Subnets: !Ref PrivateSubnetB
-  # #         SecurityGroups: 
-  # #           - !Ref ContainerSecurityGroup
-  # #     LoadBalancers:
-  # #       - ContainerName: !Ref ContainerName
-  # #         ContainerPort: !Ref ContainerPort
-  # #         TargetGroupArn: !Ref TargetGroup
-
-  # # ECSServiceC:
-  # #   Type: AWS::ECS::Service
-  # #   Properties:
-  # #     ServiceName: !Ref ContainerName
-  # #     Cluster: !Ref Cluster
-  # #     TaskDefinition: !Ref TaskDefinition
-  # #     DesiredCount: 2
-  # #     LaunchType: FARGATE
-  # #     NetworkConfiguration:
-  # #       AwsvpcConfiguration:
-  # #         AssignPublicIp: ENABLED
-  # #         Subnets: !Ref PrivateSubnetC
-  # #         SecurityGroups: 
-  # #           - !Ref ContainerSecurityGroup
-  # #     LoadBalancers:
-  # #       - ContainerName: !Ref ContainerName
-  # #         ContainerPort: !Ref ContainerPort
-  # #         TargetGroupArn: !Ref TargetGroup
 
   # Create a TaskDefinition with container details
   TaskDefinition:
@@ -985,124 +947,124 @@ Resources:
         PredefinedMetricSpecification:
           PredefinedMetricType: ECSServiceAverageCPUUtilization
 
-# Outputs:
-#   Cluster:
-#     Description: The cluster
-#     Value: !Ref Cluster
-#     Export:
-#       Name: !Sub "${AWS::StackName}-Cluster"
-#   ExecutionRole:
-#     Description: The task execution role
-#     Value: !Ref ExecutionRole
-#     Export:
-#       Name: !Sub "${AWS::StackName}-ExecutionRole"
-#   ClusterVPC:
-#     Description: The ID of the VPC
-#     Value: !Ref VPC
-#     Export:
-#       Name: !Sub "${AWS::StackName}-ClusterVPC"
-#   ContainerSecurityGroup:
-#     Description: The Container Security Group
-#     Value: !Ref ContainerSecurityGroup
-#     Export:
-#       Name: !Sub "${AWS::StackName}-ContainerSecurityGroup"
-#   PrivateSubnetA:
-#     Description: Subnets used by cluster
-#     Value: !Ref PrivateSubnetA
-#     Export:
-#         Name: !Sub "${AWS::StackName}-PrivateSubnetA"
-#   PrivateSubnetB:
-#     Description: Subnets used by cluster
-#     Value: !Ref PrivateSubnetB
-#     Export:
-#         Name: !Sub "${AWS::StackName}-PrivateSubnetB"
-#   LoadBalancer:
-#     Description: The loadbalancer
-#     Value: !Ref LoadBalancer
-#     Export:
-#       Name: !Sub "${AWS::StackName}-LoadBalancer"
-#   HTTPListener:
-#     Description: The http listener
-#     Value: !Ref HTTPListener
-#     Export:
-#       Name: !Sub "${AWS::StackName}-HTTPListener"
-#   DBSubnetGroup:
-#     Description: The DB Subnet Group
-#     Value: !Ref DBSubnetGroup
-#     Export:
-#       Name: !Sub "${AWS::StackName}-DBSubnetGroup"
-#   DBCluster:
-#     Description: The Aurora Postgres Cluster
-#     Value: !Ref DBCluster
-#     Export:
-#       Name: !Sub "${AWS::StackName}-DBCluster"
-#   DBEndpoint:
-#     Description: The Postgres Read/Write Endpoint
-#     Value: !GetAtt DBCluster.Endpoint.Address
-#     Export:
-#       Name: !Sub "${AWS::StackName}-DBEndpoint"
-#   DBReadEndpoint:
-#     Description: The Postgres Read-Only Endpoint
-#     Value: !GetAtt DBCluster.ReadEndpoint.Address
-#     Export:
-#       Name: !Sub "${AWS::StackName}-DBReadEndpoint"
-#   RDSinstanceMaster:
-#     Description: The Aurora Postgres Cluster Main Instance
-#     Value: !Ref RDSinstanceMaster
-#     Export:
-#       Name: !Sub "${AWS::StackName}-RDSinstanceMaster"
-#   RDSinstanceReplicaA:
-#     Description: The Aurora Postgres Cluster Read Replica
-#     Value: !Ref RDSinstanceReplicaA
-#     Export:
-#       Name: !Sub "${AWS::StackName}-RDSinstanceReplicaA"
-#   RDSinstanceReplicaB:
-#     Description: The Aurora Postgres Cluster Read Replica
-#     Value: !Ref RDSinstanceReplicaB
-#     Export:
-#       Name: !Sub "${AWS::StackName}-RDSinstanceReplicaB"
-#   DbParameterGroup:
-#     Description: The DB Parameter Group
-#     Value: !Ref DbParameterGroup
-#     Export:
-#       Name: !Sub "${AWS::StackName}-DbParameterGroup"
-#   PublicSubnetA:
-#     Description: The Public Subnet A for NAT Gateway
-#     Value: !Ref PublicSubnetA
-#     Export:
-#       Name: !Sub "${AWS::StackName}-PublicSubnetA"
-#   PublicSubnetB:
-#     Description: The Public Subnet B for NAT Gateway
-#     Value: !Ref PublicSubnetB
-#     Export:
-#       Name: !Sub "${AWS::StackName}-PublicSubnetB"
-#   NATA:
-#     Description: The NAT Gateway for Public Subnet A
-#     Value: !Ref NATA
-#     Export:
-#       Name: !Sub "${AWS::StackName}-NATA"
-#   EIPA:
-#     Description: The Elastic IP address for Private Internet Gateway A
-#     Value: !Ref EIPA
-#     Export:
-#       Name: !Sub "${AWS::StackName}-EIPA"
-#   PrivateRouteA:
-#     Description: The Route for Private Internet Gateway in Subnet A
-#     Value: !Ref PrivateRouteA
-#     Export:
-#       Name: !Sub "${AWS::StackName}-PrivateRouteA"
-#   NATB:
-#     Description: The NAT Gateway for Public Subnet B
-#     Value: !Ref NATB
-#     Export:
-#       Name: !Sub "${AWS::StackName}-NATB"
-#   EIPB:
-#     Description: The Elastic IP address for Private Internet Gateway B
-#     Value: !Ref EIPB
-#     Export:
-#       Name: !Sub "${AWS::StackName}-EIPB"
-#   PrivateRouteB:
-#     Description: The Route for Private Internet Gateway in Subnet B
-#     Value: !Ref PrivateRouteB
-#     Export:
-#       Name: !Sub "${AWS::StackName}-PrivateRouteB"
+Outputs:
+  Cluster:
+    Description: The cluster
+    Value: !Ref Cluster
+    Export:
+      Name: !Sub "${AWS::StackName}-Cluster"
+  ExecutionRole:
+    Description: The task execution role
+    Value: !Ref ExecutionRole
+    Export:
+      Name: !Sub "${AWS::StackName}-ExecutionRole"
+  ClusterVPC:
+    Description: The ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-ClusterVPC"
+  ContainerSecurityGroup:
+    Description: The Container Security Group
+    Value: !Ref ContainerSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-ContainerSecurityGroup"
+  PrivateSubnetA:
+    Description: Subnets used by cluster
+    Value: !Ref PrivateSubnetA
+    Export:
+        Name: !Sub "${AWS::StackName}-PrivateSubnetA"
+  PrivateSubnetB:
+    Description: Subnets used by cluster
+    Value: !Ref PrivateSubnetB
+    Export:
+        Name: !Sub "${AWS::StackName}-PrivateSubnetB"
+  LoadBalancer:
+    Description: The loadbalancer
+    Value: !Ref LoadBalancer
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancer"
+  HTTPListener:
+    Description: The http listener
+    Value: !Ref HTTPListener
+    Export:
+      Name: !Sub "${AWS::StackName}-HTTPListener"
+  DBSubnetGroup:
+    Description: The DB Subnet Group
+    Value: !Ref DBSubnetGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-DBSubnetGroup"
+  DBCluster:
+    Description: The Aurora Postgres Cluster
+    Value: !Ref DBCluster
+    Export:
+      Name: !Sub "${AWS::StackName}-DBCluster"
+  DBEndpoint:
+    Description: The Postgres Read/Write Endpoint
+    Value: !GetAtt DBCluster.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DBEndpoint"
+  DBReadEndpoint:
+    Description: The Postgres Read-Only Endpoint
+    Value: !GetAtt DBCluster.ReadEndpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DBReadEndpoint"
+  RDSinstanceMaster:
+    Description: The Aurora Postgres Cluster Main Instance
+    Value: !Ref RDSinstanceMaster
+    Export:
+      Name: !Sub "${AWS::StackName}-RDSinstanceMaster"
+  RDSinstanceReplicaA:
+    Description: The Aurora Postgres Cluster Read Replica
+    Value: !Ref RDSinstanceReplicaA
+    Export:
+      Name: !Sub "${AWS::StackName}-RDSinstanceReplicaA"
+  RDSinstanceReplicaB:
+    Description: The Aurora Postgres Cluster Read Replica
+    Value: !Ref RDSinstanceReplicaB
+    Export:
+      Name: !Sub "${AWS::StackName}-RDSinstanceReplicaB"
+  DbParameterGroup:
+    Description: The DB Parameter Group
+    Value: !Ref DbParameterGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-DbParameterGroup"
+  PublicSubnetA:
+    Description: The Public Subnet A for NAT Gateway
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetA"
+  PublicSubnetB:
+    Description: The Public Subnet B for NAT Gateway
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetB"
+  NATA:
+    Description: The NAT Gateway for Public Subnet A
+    Value: !Ref NATA
+    Export:
+      Name: !Sub "${AWS::StackName}-NATA"
+  EIPA:
+    Description: The Elastic IP address for Private Internet Gateway A
+    Value: !Ref EIPA
+    Export:
+      Name: !Sub "${AWS::StackName}-EIPA"
+  PrivateRouteA:
+    Description: The Route for Private Internet Gateway in Subnet A
+    Value: !Ref PrivateRouteA
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateRouteA"
+  NATB:
+    Description: The NAT Gateway for Public Subnet B
+    Value: !Ref NATB
+    Export:
+      Name: !Sub "${AWS::StackName}-NATB"
+  EIPB:
+    Description: The Elastic IP address for Private Internet Gateway B
+    Value: !Ref EIPB
+    Export:
+      Name: !Sub "${AWS::StackName}-EIPB"
+  PrivateRouteB:
+    Description: The Route for Private Internet Gateway in Subnet B
+    Value: !Ref PrivateRouteB
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateRouteB"
